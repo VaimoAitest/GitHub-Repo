@@ -18,6 +18,16 @@ def oauth1():
         raise HTTPException(status_code=500, detail="Missing IS24_CONSUMER_KEY / IS24_CONSUMER_SECRET")
     return OAuth1(key, secret)
 
+
+
+@app.get("/envnames")
+def envnames():
+    import os
+    keys = ["IS24_CONSUMER_KEY", "IS24_CONSUMER_SECRET", "IS24_BASE_URL"]
+    return {k: (k in os.environ) for k in keys}
+
+
+
 @app.get("/version")
 def version():
     return {"version": "2.0-real-is24", "base_url": IS24_BASE_URL}
