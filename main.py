@@ -8,6 +8,11 @@ from requests_oauthlib import OAuth1
 
 app = FastAPI(title="VaimoAI Proxy API", version="2.0.0")
 
+@app.get("/version")
+def version():
+    return {"version": "2.0-real-is24", "base_url": IS24_BASE_URL}
+
+
 # Environment Variables (aus Render)
 IS24_BASE_URL = os.getenv("IS24_BASE_URL", "https://rest.sandbox-immobilienscout24.de/restapi/api")
 CONSUMER_KEY = os.getenv("IS24_CONSUMER_KEY")
