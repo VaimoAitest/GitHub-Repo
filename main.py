@@ -1,8 +1,23 @@
-from fastapi import FastAPI
+import os
+import requests
+import xmltodict
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from typing import Optional
+from requests_oauthlib import OAuth1
 
-app = FastAPI(title="VaimoAI Proxy API", version="1.0.0")
+app = FastAPI(title="VaimoAI Proxy API", version="2.0.0")
+
+# Environment Variables (aus Render)
+IS24_BASE_URL = os.getenv("IS24_BASE_URL", "https://rest.sandbox-immobilienscout24.de/restapi/api")
+CONSUMER_KEY = os.getenv("IS24_CONSUMER_KEY")
+CONSUMER_SECRET = os.getenv("IS24_CONSUMER_SECRET")
+
+
+def oauth1():
+    if not CONSUMER_KEY or not CONSUMER_SECRET:
+        raise HTTPException(status_code=500, detail="Missing IS24_CONSUMER_KEY / IS24_CONSUMER_SECRET")
+    return OAuth1(CONSUMER_KEY, CONSUMER_SECRET)
 
 
 @app.get("/health")
@@ -20,58 +35,76 @@ def is24_search(
     pagenumber: int = 1,
     features: Optional[str] = None,
 ):
-    # Demo JSON (damit Actions sicher parsen)
-    return JSONResponse(
-        content={
-            "pageNumber": pagenumber,
-            "pageSize": pagesize,
-            "numberOfHits": 2,
-            "items": [
-                {
-                    "exposeId": "64752863",
-                    "title": "Demo Halle 3'100 m²",
-                    "price": 21700.0,
-                    "currency": "EUR",
-                    "priceInterval": "MONTH",
-                    "address": "Berlin 12161",
-                    "lat": 52.46688,
-                    "lon": 13.33361,
-                    "url": "https://www.immobilienscout24.de/expose/64752863",
-                    "source": "sandbox"
-                },
-                {
-                    "exposeId": "62234938",
-                    "title": "Demo Halle 2'800 m²",
-                    "price": 18200.0,
-                    "currency": "EUR",
-                    "priceInterval": "MONTH",
-                    "address": "Berlin 12159",
-                    "lat": 52.47656,
-                    "lon": 13.33822,
-                    "url": "https://www.immobilienscout24.de/expose/62234938",
-                    "source": "sandbox"
-                }
-            ],
-        }
+    if mode not in ("radius", "region"):
+        raise HTTPException(status_code=400, detail="mode must be radius or region")
+
+    if mode == "radius" and not geocoordinates:
+        raise HTTPException(status_code=400, detail="geocoordinates required for radius mode")
+
+    if mode == "region" and not geocodes:
+        raise HTTPException(status_code=400, detail="geocodes required for region mode")
+
+    url = f"{IS24_BASE_URL}/search/v1.0/search/{mode}"
+
+    params = {
+        "realestatetype": realestatetype,
+        "pagesize": pagesize,
+        "pagenumber": pagenumber,
+    }
+
+    if geocoordinates:
+        params["geocoordinates"] = geocoordinates
+
+    if geocodes:
+        params["geocodes"] = geocodes
+
+    if features:
+        params["features"] = features
+
+    response = requests.get(
+        url,
+        params=params,
+        auth=oauth1(),
+        headers={"Accept": "application/xml"},
+        timeout=30,
     )
+
+    if response.status_code >= 400:
+        return JSONResponse(
+            status_code=response.status_code,
+            content={
+                "error": "IS24 Error",
+                "status": response.status_code,
+                "body": response.text[:1500],
+            },
+        )
+
+    data = xmltodict.parse(response.text)
+
+    return JSONResponse(content={"raw": data})
 
 
 @app.get("/is24/expose/{exposeId}")
 def is24_expose(exposeId: str):
-    return JSONResponse(
-        content={
-            "exposeId": exposeId,
-            "title": "Demo Expose",
-            "description": "Demo description (replace with IS24 Expose API later).",
-            "propertyType": "Industry",
-            "marketingType": "RENT",
-            "price": 21700.0,
-            "currency": "EUR",
-            "priceInterval": "MONTH",
-            "size_m2": 3100,
-            "address": "Berlin",
-            "features": ["Rampe", "Deckenhöhe 8m"],
-            "images": [],
-            "url": f"https://www.immobilienscout24.de/expose/{exposeId}"
-        }
+    url = f"{IS24_BASE_URL}/search/v1.0/expose/{exposeId}"
+
+    response = requests.get(
+        url,
+        auth=oauth1(),
+        headers={"Accept": "application/xml"},
+        timeout=30,
     )
+
+    if response.status_code >= 400:
+        return JSONResponse(
+            status_code=response.status_code,
+            content={
+                "error": "IS24 Error",
+                "status": response.status_code,
+                "body": response.text[:1500],
+            },
+        )
+
+    data = xmltodict.parse(response.text)
+
+    return JSONResponse(content={"raw": data})
