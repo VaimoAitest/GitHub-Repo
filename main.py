@@ -21,6 +21,15 @@ def envcheck():
     }
 
 
+
+@app.get("/envtest")
+def envtest():
+    import os
+    return {"TEST_RENDER_ENV": os.getenv("TEST_RENDER_ENV")}
+
+
+
+
 # Environment Variables (aus Render)
 IS24_BASE_URL = os.getenv("IS24_BASE_URL", "https://rest.sandbox-immobilienscout24.de/restapi/api")
 CONSUMER_KEY = os.getenv("IS24_CONSUMER_KEY")
