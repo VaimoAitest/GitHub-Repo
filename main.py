@@ -43,15 +43,18 @@ def is24_search(
         timeout=30,
     )
 
+ 
+
     if response.status_code >= 400:
-        return JSONResponse(
-            status_code=response.status_code,
-            content={
-                "error": "IS24 Error",
-                "status": response.status_code,
-                "body": (response.text or "")[:1500],
-                "called_url": response.url,   # 🔥 hilft beim Debug
-            },
-        )
+    return JSONResponse(
+        status_code=response.status_code,
+        content={
+            "error": "IS24 Error",
+            "status": response.status_code,
+            "called_url": response.url,
+            "body": (response.text or "")[:1500],
+        },
+    )
+
 
     return JSONResponse(content={"raw": xmltodict.parse(response.text)})
