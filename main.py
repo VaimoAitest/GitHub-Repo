@@ -18,15 +18,10 @@ def oauth1():
         raise HTTPException(status_code=500, detail="Missing IS24_CONSUMER_KEY / IS24_CONSUMER_SECRET")
     return OAuth1(key, secret)
 
-
-
 @app.get("/envnames")
 def envnames():
-    import os
     keys = ["IS24_CONSUMER_KEY", "IS24_CONSUMER_SECRET", "IS24_BASE_URL"]
     return {k: (k in os.environ) for k in keys}
-
-
 
 @app.get("/version")
 def version():
@@ -67,7 +62,8 @@ def is24_search(
     if mode == "region" and not geocodes:
         raise HTTPException(status_code=400, detail="geocodes required for region mode")
 
-    url = f"{IS24_BASE_URL}/search/v1.0/search/{mode}"
+    # ✅ FIX: kein /radius oder /region im Pfad!
+    url = f"{IS24_BASE_URL}/search/v1.0/search"
 
     params = {
         "realestatetype": realestatetype,
@@ -115,3 +111,4 @@ def is24_expose(exposeId: str):
         )
 
     return JSONResponse(content={"raw": xmltodict.parse(response.text)})
+
